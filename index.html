@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>퇴임식 준비 체크리스트</title>
+    <!-- Firebase SDK (실시간 DB 연동 라이브러리) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f8f9fa;
+            --edit-bg: #fff9db;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-title-box { flex: 1; min-width: 300px; }
+        h1 { margin: 0; color: var(--primary-color); font-size: 26px; outline: none; padding: 4px 8px; border-radius: 4px; }
+
+        .subtitle {
+            margin: 10px 0 0 8px; color: #1864ab; font-size: 15px; font-weight: 600;
+            background-color: #e7f5ff; padding: 8px 14px; border-left: 4px solid var(--accent-color);
+            border-radius: 4px; outline: none; line-height: 1.4;
+        }
+
+        .toolbar { display: flex; gap: 10px; margin-top: 5px; }
+
+        button {
+            padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+
+        .btn-edit { background-color: #f39c12; color: white; }
+        .btn-add { background-color: #2ecc71; color: white; }
+        .btn-save { background-color: var(--accent-color); color: white; }
+        .btn-print { background-color: #6c757d; color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .edit-status {
+            font-size: 14px; padding: 6px 12px; border-radius: 20px;
+            background: #e9ecef; color: #495057; display: inline-block; margin-bottom: 15px;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid var(--border-color); padding: 10px 12px; text-align: left; vertical-align: middle; font-size: 14px; }
+        th { background-color: #f1f3f5; color: var(--primary-color); font-weight: 600; text-align: center; }
+
+        body.edit-mode .editable { background-color: var(--edit-bg); border: 1px dashed #f1c40f; cursor: text; }
+        .editable { outline: none; padding: 4px 6px; border-radius: 4px; min-height: 20px; }
+
+        tr.completed .task-title { text-decoration: line-through; color: #adb5bd; }
+
+        select {
+            padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border-color);
+            font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; text-align: center;
+        }
+
+        .status-ready { background-color: #e9ecef; color: #495057; }
+        .status-ing { background-color: #fff3bf; color: #f59f00; }
+        .status-done { background-color: #d3f9d8; color: #2b8a3e; }
+
+        .pay-unpaid { background-color: #ffe3e3; color: #c92a2a; }
+        .pay-paid { background-color: #d3f9d8; color: #2b8a3e; }
+        .pay-settle { background-color: #e7f5ff; color: #1864ab; }
+        .pay-none { background-color: #f8f9fa; color: #868e96; }
+
+        .prep-o { background-color: #d3f9d8; color: #2b8a3e; font-weight: bold; }
+        .prep-x { background-color: #ffe3e3; color: #c92a2a; font-weight: bold; }
+        .prep-none { background-color: #f8f9fa; color: #868e96; }
+
+        tfoot tr.total-row td { background-color: #f1f3f5; border-top: 2px solid var(--primary-color); font-size: 15px; }
+        .total-label { text-align: right; font-weight: 700; color: var(--primary-color); }
+        .total-amount { text-align: right; font-weight: 800; color: #d9480f; font-size: 16px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; }
+            .toolbar, .btn-del, .edit-status { display: none !important; }
+            .editable { border: none !important; background: transparent !important; }
+            th, td { border: 1px solid #000; }
+            select { border: none; appearance: none; background: transparent !important; padding: 0; text-align: center; }
+            .subtitle { border-left: none; background: #f1f3f5; }
+        }
+
+        .btn-del { background: #ff6b6b; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-title-box">
+            <h1 id="title" class="editable" contenteditable="false">🏆 OO 회장/임원 퇴임식 준비 체크리스트</h1>
+            <p id="subtitle" class="subtitle editable" contenteditable="false">준비조 가능하신 후배님들께서는 2시까지 숙소에서 짐정리, 식장준비 후 카페로 이동</p>
+        </div>
+        <div class="toolbar">
+            <button class="btn-edit" id="editToggleBtn" onclick="toggleEditMode()">✏️ 편집 모드 ON</button>
+            <button class="btn-add" onclick="addRow()">➕ 항목 추가</button>
+            <button class="btn-save" onclick="saveData()">💾 저장하기</button>
+            <button class="btn-print" onclick="window.print()">🖨️ 인쇄/PDF</button>
+        </div>
+    </header>
+
+    <div class="edit-status" id="editStatusText">🔒 읽기 전용 모드입니다. (텍스트 수정 시 [편집 모드 ON]을 누르세요)</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 45px;">완료</th>
+                <th style="width: 27%;">준비 항목 / 세부 내용</th>
+                <th style="width: 11%;">담당자</th>
+                <th style="width: 12%;">지출금액</th>
+                <th style="width: 12%;">지출확인</th>
+                <th style="width: 12%;">준비조 가능</th>
+                <th style="width: 12%;">진행 상황</th>
+                <th style="width: 6%;" class="no-print">삭제</th>
+            </tr>
+        </thead>
+        <tbody id="checklistBody"></tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="3" class="total-label">💵 총 지출금액 합계:</td>
+                <td id="totalAmountDisplay" class="total-amount">0원</td>
+                <td colspan="4"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<script>
+    // ----------------------------------------------------
+    // [중요] 아래 Firebase 설정에 본인 프로젝트 키 값을 입력하세요.
+    // ----------------------------------------------------
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Firebase 초기화
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let isEditMode = false;
+
+    // 초기 샘플 데이터
+    const defaultData = [
+        { done: false, title: "퇴임식 일시 및 장소 대관", owner: "총무팀", amount: "500,000원", payStatus: "paid", prepTeam: "O", status: "ing" },
+        { done: false, title: "초청장 제작 및 발송 (내/외빈)", owner: "홍보팀", amount: "150,000원", payStatus: "unpaid", prepTeam: "X", status: "ready" },
+        { done: false, title: "공로패/감사패 문안 작성 및 제작", owner: "인사팀", amount: "300,000원", payStatus: "settle", prepTeam: "O", status: "ready" },
+        { done: false, title: "퇴임 기념 영상/약력 자료 제작", owner: "미디어팀", amount: "0원", payStatus: "none", prepTeam: "O", status: "ready" },
+        { done: false, title: "퇴임사 및 송별사 원고 준비", owner: "비서실", amount: "0원", payStatus: "none", prepTeam: "X", status: "ready" },
+        { done: false, title: "꽃다발 및 기념 선물 준비", owner: "총무팀", amount: "200,000원", payStatus: "unpaid", prepTeam: "O", status: "ready" },
+        { done: false, title: "행사장 음향/영상/마이크 점검", owner: "시설팀", amount: "0원", payStatus: "none", prepTeam: "O", status: "ready" },
+        { done: false, title: "다과 및 만찬 예약", owner: "총무팀", amount: "1,200,000원", payStatus: "unpaid", prepTeam: "X", status: "ready" }
+    ];
+
+    // 페이지 로드 시 클라우드 DB 실시간 감지
+    window.onload = function() {
+        database.ref('retirementChecklistData').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                if (data.title) document.getElementById('title').innerText = data.title;
+                if (data.subtitle) document.getElementById('subtitle').innerText = data.subtitle;
+                if (data.items) renderTable(data.items);
+            } else {
+                // DB가 비어있는 경우 기본 샘플데이터 저장
+                saveDataToFirebase({
+                    title: document.getElementById('title').innerText,
+                    subtitle: document.getElementById('subtitle').innerText,
+                    items: defaultData
+                });
+            }
+        });
+    };
+
+    function renderTable(data) {
+        const tbody = document.getElementById('checklistBody');
+        tbody.innerHTML = '';
+
+        data.forEach((item) => {
+            const tr = document.createElement('tr');
+            if (item.done) tr.classList.add('completed');
+
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleDone(this)">
+                </td>
+                <td><div class="editable task-title" contenteditable="${isEditMode}">${item.title}</div></td>
+                <td><div class="editable" contenteditable="${isEditMode}">${item.owner}</div></td>
+                <td><div class="editable" style="text-align: right;" contenteditable="${isEditMode}" oninput="calculateTotalAmount()">${item.amount || '0원'}</div></td>
+                <td>
+                    <select class="pay-select ${getPayStatusClass(item.payStatus || 'none')}" onchange="changePayStatus(this)">
+                        <option value="unpaid" ${(item.payStatus === 'unpaid') ? 'selected' : ''}>⏳ 미지출</option>
+                        <option value="paid" ${(item.payStatus === 'paid') ? 'selected' : ''}>💳 지출완료</option>
+                        <option value="settle" ${(item.payStatus === 'settle') ? 'selected' : ''}>🧾 정산필요</option>
+                        <option value="none" ${(item.payStatus === 'none' || !item.payStatus) ? 'selected' : ''}>➖ 해당없음</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="prep-select ${getPrepClass(item.prepTeam || 'none')}" onchange="changePrepStatus(this)">
+                        <option value="O" ${(item.prepTeam === 'O') ? 'selected' : ''}>⭕ O (가능)</option>
+                        <option value="X" ${(item.prepTeam === 'X') ? 'selected' : ''}>❌ X (불가)</option>
+                        <option value="none" ${(item.prepTeam === 'none' || !item.prepTeam) ? 'selected' : ''}>➖ 미정</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="status-select ${getStatusClass(item.status)}" onchange="changeStatus(this)">
+                        <option value="ready" ${item.status === 'ready' ? 'selected' : ''}>⏳ 준비중</option>
+                        <option value="ing" ${item.status === 'ing' ? 'selected' : ''}>🔄 진행중</option>
+                        <option value="done" ${item.status === 'done' ? 'selected' : ''}>✅ 완료</option>
+                    </select>
+                </td>
+                <td style="text-align: center;" class="no-print">
+                    <button class="btn-del" onclick="deleteRow(this)">삭제</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        calculateTotalAmount();
+    }
+
+    function calculateTotalAmount() {
+        const rows = document.querySelectorAll('#checklistBody tr');
+        let total = 0;
+        rows.forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length > 3) {
+                const amountDiv = tds[3].querySelector('.editable');
+                if (amountDiv) {
+                    const num = parseInt(amountDiv.innerText.replace(/[^0-9]/g, ''), 10);
+                    if (!isNaN(num)) total += num;
+                }
+            }
+        });
+        document.getElementById('totalAmountDisplay').innerText = total.toLocaleString() + '원';
+    }
+
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById('editToggleBtn');
+        const statusText = document.getElementById('editStatusText');
+        const editables = document.querySelectorAll('.editable');
+
+        if (isEditMode) {
+            document.body.classList.add('edit-mode');
+            btn.innerText = "🔓 편집 완료 (모드 OFF)";
+            btn.style.backgroundColor = "#e74c3c";
+            statusText.innerText = "✏️ 편집 모드 활성화됨: 텍스트 및 금액을 수정 후 [저장하기]를 누르세요.";
+            statusText.style.background = "#fff3bf";
+            statusText.style.color = "#d9480f";
+        } else {
+            document.body.classList.remove('edit-mode');
+            btn.innerText = "✏️ 편집 모드 ON";
+            btn.style.backgroundColor = "#f39c12";
+            statusText.innerText = "🔒 읽기 전용 모드입니다. (텍스트 수정 시 [편집 모드 ON]을 누르세요)";
+            statusText.style.background = "#e9ecef";
+            statusText.style.color = "#495057";
+            saveData();
+        }
+
+        editables.forEach(el => { el.contentEditable = isEditMode; });
+    }
+
+    function toggleDone(checkbox) {
+        const tr = checkbox.closest('tr');
+        if (checkbox.checked) tr.classList.add('completed');
+        else tr.classList.remove('completed');
+        saveData();
+    }
+
+    function changeStatus(select) { select.className = 'status-select ' + getStatusClass(select.value); saveData(); }
+    function getStatusClass(s) { return s === 'ing' ? 'status-ing' : (s === 'done' ? 'status-done' : 'status-ready'); }
+
+    function changePayStatus(select) { select.className = 'pay-select ' + getPayStatusClass(select.value); saveData(); }
+    function getPayStatusClass(s) { return s === 'unpaid' ? 'pay-unpaid' : (s === 'paid' ? 'pay-paid' : (s === 'settle' ? 'pay-settle' : 'pay-none')); }
+
+    function changePrepStatus(select) { select.className = 'prep-select ' + getPrepClass(select.value); saveData(); }
+    function getPrepClass(s) { return s === 'O' ? 'prep-o' : (s === 'X' ? 'prep-x' : 'prep-none'); }
+
+    function addRow() {
+        const tbody = document.getElementById('checklistBody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align: center;"><input type="checkbox" onchange="toggleDone(this)"></td>
+            <td><div class="editable task-title" contenteditable="${isEditMode}">새 준비 항목을 입력하세요</div></td>
+            <td><div class="editable" contenteditable="${isEditMode}">담당자</div></td>
+            <td><div class="editable" style="text-align: right;" contenteditable="${isEditMode}" oninput="calculateTotalAmount()">0원</div></td>
+            <td>
+                <select class="pay-select pay-none" onchange="changePayStatus(this)">
+                    <option value="unpaid">⏳ 미지출</option><option value="paid">💳 지출완료</option>
+                    <option value="settle">🧾 정산필요</option><option value="none" selected>➖ 해당없음</option>
+                </select>
+            </td>
+            <td>
+                <select class="prep-select prep-none" onchange="changePrepStatus(this)">
+                    <option value="O">⭕ O (가능)</option><option value="X">❌ X (불가)</option><option value="none" selected>➖ 미정</option>
+                </select>
+            </td>
+            <td>
+                <select class="status-select status-ready" onchange="changeStatus(this)">
+                    <option value="ready" selected>⏳ 준비중</option><option value="ing">🔄 진행중</option><option value="done">✅ 완료</option>
+                </select>
+            </td>
+            <td style="text-align: center;" class="no-print"><button class="btn-del" onclick="deleteRow(this)">삭제</button></td>
+        `;
+        tbody.appendChild(tr);
+        calculateTotalAmount();
+        saveData();
+    }
+
+    function deleteRow(btn) {
+        if (confirm("이 항목을 삭제하시겠습니까?")) {
+            btn.closest('tr').remove();
+            calculateTotalAmount();
+            saveData();
+        }
+    }
+
+    // 서버(Firebase)로 데이터 저장
+    function saveData() {
+        const title = document.getElementById('title').innerText;
+        const subtitle = document.getElementById('subtitle').innerText;
+        const rows = document.querySelectorAll('#checklistBody tr');
+        const items = [];
+
+        rows.forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            items.push({
+                done: tds[0].querySelector('input[type="checkbox"]').checked,
+                title: tds[1].querySelector('.editable').innerText,
+                owner: tds[2].querySelector('.editable').innerText,
+                amount: tds[3].querySelector('.editable').innerText,
+                payStatus: tds[4].querySelector('select').value,
+                prepTeam: tds[5].querySelector('select').value,
+                status: tds[6].querySelector('select').value
+            });
+        });
+
+        saveDataToFirebase({ title, subtitle, items });
+        calculateTotalAmount();
+    }
+
+    function saveDataToFirebase(fullData) {
+        database.ref('retirementChecklistData').set(fullData);
+    }
+</script>
+
+</body>
+</html>
